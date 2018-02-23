@@ -53,7 +53,8 @@ public class FirstFit extends Memory {
 	/**
 	 * Allocates a number of memory cells.
 	 * 
-	 * @param size the number of cells to allocate.
+	 * @param size
+	 *            the number of cells to allocate.
 	 * @return The address of the first cell.
 	 */
 	@Override
@@ -71,7 +72,7 @@ public class FirstFit extends Memory {
 					linkFree.pointer = address;
 				}
 				usedMap.put(address, size);
-//				usedList.add(new Link(size, address));
+				// usedList.add(new Link(size, address));
 				break;
 			}
 		}
@@ -95,27 +96,37 @@ public class FirstFit extends Memory {
 		int usedTotal = addressToRelease + sizeToRelease;
 		
 		int freeAddress = -1;
+		int index = -1;
+		Link link = null;
 		for (Link freeLink : freeList) {
-			int index = freeList.indexOf(freeLink);
+			index = freeList.indexOf(freeLink);
 			int freeSize = freeLink.size;
 			freeAddress = freeLink.pointer.pointsAt();
 			int freeTotal = freeSize + freeAddress;
 			
-			if(freeTotal == addressToRelease - 1) {
+			if (freeTotal == addressToRelease) {
 				freeLink.size += sizeToRelease;
+				freeAddress = freeLink.pointer.pointsAt();
+				usedTotal = freeLink.size;
+				link = freeLink;
 				usedMap.remove(p);
-				if(freeList.get(index).pointer.pointsAt() > addressToRelease) {
-					
-				}
+				break;
+			} else {
+				// skapa ny nod i freeList.
 			}
-			if(usedTotal == freeAddress - 1) {
-				
-			}
-			
-			
 		}
-		
-		
+		if (freeList.get(index + 1) == null) {
+			System.out.println("inget efter indexet i linklist");
+		} else if (freeList.get(index + 1).pointer.pointsAt() == usedTotal) {
+			System.out.println("freeList ska merga med index + 1");
+			link.size += freeList.get(index+1).size;
+		}
+//		for (Link freeLink : freeList) {
+//			if (freeAddress == usedTotal - 1) {
+//				
+//			}
+//		}
+
 	}
 
 	/**
