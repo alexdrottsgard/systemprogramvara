@@ -1,6 +1,7 @@
 package memory;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 /**
@@ -13,6 +14,7 @@ public class FirstFit extends Memory {
 	private LinkedList<Link> freeList = new LinkedList<Link>();
 	private int freeListSize;
 	private LinkedList<Link> usedList = new LinkedList<Link>();
+	private HashMap<Pointer, Integer> usedMap = new HashMap<Pointer, Integer>();
 
 	class Link implements Comparator {
 		int size; // storlek
@@ -22,17 +24,17 @@ public class FirstFit extends Memory {
 			this.size = number;
 			this.pointer = pointer;
 		}
-		
+
 		public Link() {
-			
+
 		}
 
 		@Override
 		public int compare(Object o1, Object o2) {
 			Link l1 = (Link) o1;
 			Link l2 = (Link) o2;
-			
-			return l1.pointer.pointsAt()-l2.pointer.pointsAt();
+
+			return l1.pointer.pointsAt() - l2.pointer.pointsAt();
 		}
 	}
 
@@ -51,29 +53,32 @@ public class FirstFit extends Memory {
 	/**
 	 * Allocates a number of memory cells.
 	 * 
-	 * @param size
-	 *            the number of cells to allocate.
+	 * @param size the number of cells to allocate.
 	 * @return The address of the first cell.
 	 */
 	@Override
 	public Pointer alloc(int size) {
-		Link linkFree;
 		Pointer address = null;
 
-		// Hur ska detta lösas, ifall det inte får plats i t.ex. första
-		// minnesplatsen.
-		for (int i = 0; i < freeList.size(); i++) {
-			linkFree = freeList.get(i);
+		for (Link linkFree : freeList) {
 			if (linkFree.size >= size) {
-				linkFree.size -= size;
-				address = linkFree.pointer = new Pointer(linkFree.pointer.pointsAt() + size, this);
-				usedList.add(new Link(size, address));
-			} else {
-				System.out.println("Minnet för litet FeelsBadMan  (╯°□°）╯︵ ┻━┻)");
+				address = new Pointer(linkFree.pointer.pointsAt() + size, this);
+				// Om freeLinken blir 0, då tar vi bort den linken
+				if (linkFree.size == size) {
+					freeList.remove(linkFree);
+				} else {
+					linkFree.size -= size;
+					linkFree.pointer = address;
+				}
+				usedMap.put(address, size);
+//				usedList.add(new Link(size, address));
+				break;
 			}
 		}
+		if (address == null) {
+			System.out.println("Minnet för litet FeelsBadMan  (╯°□°）╯︵ ┻━┻)");
+		}
 		System.out.println("ADRESS: " + address.pointsAt());
-		freeList.sort(new Link());
 		return address;
 	}
 
@@ -86,72 +91,31 @@ public class FirstFit extends Memory {
 	@Override
 	public void release(Pointer p) {
 		int addressToRelease = p.pointsAt();
-		int nextPointer;
-		int sizeToRelease = 0;
-		int address = 0;
-		int newFreeAdress = 0;
-		int totalMergeSize = 0;
-		Pointer newPointer = null;
-		int loopaDettaBitch = freeList.size();
-		int count = 0;
-		// Går igenom usedList
-		for (int i = 0; i < usedList.size(); i++) {
-			if (usedList.get(i).pointer.pointsAt() == addressToRelease) {
-				sizeToRelease = usedList.get(i).size;
-				nextPointer = usedList.get(i).pointer.pointsAt() + sizeToRelease + 1;
-				
-				// Går igenom freeList
-				for (int j = 0; j < loopaDettaBitch; j++) {
-					int freeListAdress = freeList.get(j).pointer.pointsAt();	// adress som finns för en Link i FreeList
-					int freeListSize = freeList.get(j).size;					// Storleken för ledigt minne för ovanstående adress.
-					int freeListBehind = freeListAdress + freeListSize;			// ÄR RÄTT!!! För att senare kunna kolla ifall det är en FREE Link bakom (för merge)
+		int sizeToRelease = usedMap.get(p);
+		int usedTotal = addressToRelease + sizeToRelease;
+		
+		int freeAddress = -1;
+		for (Link freeLink : freeList) {
+			int index = freeList.indexOf(freeLink);
+			int freeSize = freeLink.size;
+			freeAddress = freeLink.pointer.pointsAt();
+			int freeTotal = freeSize + freeAddress;
+			
+			if(freeTotal == addressToRelease - 1) {
+				freeLink.size += sizeToRelease;
+				usedMap.remove(p);
+				if(freeList.get(index).pointer.pointsAt() > addressToRelease) {
 					
-					// Kollar om linken innan (-1) är ett ledigt utrymme
-					if (freeListBehind == addressToRelease - 1) {
-						
-						totalMergeSize = freeListSize + usedList.get(i).size;
-						newPointer = new Pointer(freeListAdress, this);
-						newFreeAdress = freeList.get(j).pointer.pointsAt();
-						usedList.remove(i);
-						freeList.remove(j);
-						freeList.add(new Link(totalMergeSize, newPointer));
-						System.out.println("Mergat med utrymme som ligger innan, ny total: " + totalMergeSize);
-						
-						// Kollar om linken efter (+1) är ett ledigt utrymme
-					} else if (freeList.get(j).pointer.pointsAt() == newFreeAdress) {
-						int mergeSize = totalMergeSize + freeListSize;
-						freeList.remove(j);
-						usedList.remove(i);
-						freeList.add(new Link(sizeToRelease, newPointer));
-						System.out.println("Mergat med utrymme som ligger efter, ny total: " + totalMergeSize);
-					} else {
-						newPointer = new Pointer(addressToRelease, this);
-						freeList.add(new Link(sizeToRelease, newPointer));
-						usedList.remove(i);
-						System.out.println("NYTT FRITT UTRYMME 3: " + sizeToRelease);
-					}
-				
-					if (freeList.get(j).pointer.pointsAt() == newFreeAdress) {
-						int mergeSize = totalMergeSize + freeListSize;
-						freeList.remove(j);
-						usedList.remove(i);
-						freeList.add(j, new Link(mergeSize, newPointer));
-						System.out.println("NYTT FRITT UTRYMME 2: " + totalMergeSize);
-					}
-					
-				
-					freeList.sort(new Link());
 				}
-				
 			}
-			if (usedList.get(i).pointer.pointsAt() == addressToRelease) {
-				// if (usedList.get(i).pointer.pointsAt() == ) {
-				//
-				// }
-				usedList.remove(i);
+			if(usedTotal == freeAddress - 1) {
+				
 			}
 			
+			
 		}
+		
+		
 	}
 
 	/**
