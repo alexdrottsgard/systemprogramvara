@@ -1,5 +1,6 @@
 package memory;
 
+import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -91,42 +92,72 @@ public class FirstFit extends Memory {
 	 */
 	@Override
 	public void release(Pointer p) {
-		int addressToRelease = p.pointsAt(); //Adressen som ska tas bort
-		int sizeToRelease = usedMap.get(p); //Returnerar storleken på minnet som ska tas bort
-		int total = addressToRelease + sizeToRelease; //Adress + storlek på det som ska tas bort. Size + 1. (Denna är fel(?))
+		int addressToRelease = p.pointsAt(); // Adressen som ska tas bort
+		int sizeToRelease = usedMap.get(p); // Returnerar storleken på minnet
+											// som ska tas bort
+		int total = addressToRelease + sizeToRelease; // Adress + storlek på det
+														// som ska tas bort.
+														// Size + 1. (Denna är
+														// fel(?))
 
-		int freeAddress = -1;				// Ska lagra adressen på fria minnet.
-		int index = -1;						// Ska lagra index för aktuell position i for-loopen nedan
+		int freeAddress = 0; // Ska lagra adressen på fria minnet.
+		int index = 0; // Ska lagra index för aktuell position i for-loopen nedan
+		boolean removeAfter = false;
 
-		for (Link freeLink : freeList) {
-			index = freeList.indexOf(freeLink); 		// Index för freeLink
-			int freeSize = freeLink.size;				//storlek på freeLink i aktuell iterationen
-			freeAddress = freeLink.pointer.pointsAt();	// adress för freeLink i aktuell iteration
-			System.out.println("freeAddress: " + freeAddress);
-			int freeTotal = freeSize + freeAddress;		//total storlek för freeLink med adress Ex: adress = 70 & storlek = 30 alltså: tot = 100.
-			
-			if (freeAddress < addressToRelease) {
-				if (freeTotal == addressToRelease) {
-					freeLink.size += sizeToRelease;
-					total = freeLink.size;
+		if (freeList.isEmpty()) {
+			System.out.println("freeListSize " + freeList.size());
+			Link newLink = new Link(sizeToRelease, new Pointer(addressToRelease, this));
+			freeList.add(newLink);
+		} else {
+			for (Link freeLink : freeList) {
+				index = freeList.indexOf(freeLink); // Index för freeLink
+				System.out.println("index: " + index);
+				int freeSize = freeLink.size; // storlek på freeLink i aktuell
+												// iterationen
+				freeAddress = freeLink.pointer.pointsAt(); // adress för
+															// freeLink i
+															// aktuell iteration
+				System.out.println("freeAddress: " + freeAddress);
+				int freeTotal = freeSize + freeAddress; // total storlek för
+														// freeLink med adress
+														// Ex:
+														// adress = 70 & storlek
+														// =
+														// 30 alltså: tot = 100.
+
+				if (freeAddress < addressToRelease) {
+					if (freeTotal == addressToRelease) {
+						freeLink.size += sizeToRelease;
+						total = freeLink.size;
+						usedMap.remove(p);
+						break;
+					}
+				} else {
+					System.out.println("Skapar ny link som inte har några fria 'grannar'");
+					System.out.println("AddressToRelease: " + addressToRelease + " sizeToRelease: " + sizeToRelease);
+					Link newLink = new Link(sizeToRelease, new Pointer(addressToRelease, this));
+					if(addressToRelease < freeAddress) {
+						System.out.println("Lägger till ny link först i listan: nya linkens address = " + addressToRelease + " gamla länkens address = " + freeAddress);
+						freeList.add(index, newLink);
+					}
 					usedMap.remove(p);
 					break;
 				}
-			} else {
-				System.out.println("Skapar ny link som inte har några fria 'grannar'");
-				System.out.println("AddressToRelease: " + addressToRelease + " sizeToRelease: " + sizeToRelease);
-				Link newLink = new Link(sizeToRelease, new Pointer(addressToRelease, this));
-				freeList.add(index, newLink);
-				usedMap.remove(p);
-				break;
+				
+				
+				if (freeList.get(index + 1).pointer.pointsAt() == total) {
+					freeList.get(index).size += freeList.get(index + 1).size;
+					System.out.println("dubbelMergeSize = " + freeList.get(index).size);
+					index = index +1;
+				}
+				
+			}
+			if (removeAfter) {
+				freeList.remove(index + 1);
 			}
 		}
 
-		if (freeList.get(index + 1).pointer.pointsAt() == total) {
-			freeList.get(index).size += freeList.get(index + 1).size;
-			System.out.println("dubbelMergeSize = " + freeList.get(index).size);
-			freeList.remove(index + 1);
-		}
+		
 	}
 
 	/**
@@ -139,7 +170,8 @@ public class FirstFit extends Memory {
 	public void printLayout() {
 		LinkedList<Link> list = new LinkedList<Link>();
 		Link link = null;
-		
+		int current = freeList.getFirst().pointer.pointsAt() - 1;
+
 		// sätter in linksen från HashMap till LinkedList
 		for (Pointer pointer : usedMap.keySet()) {
 			link = new Link(usedMap.get(pointer), pointer);
@@ -147,12 +179,43 @@ public class FirstFit extends Memory {
 
 		}
 		list.sort(link);
+		System.out.println();
 		
-		for (Link usedLink : list) {
-			System.out.println(usedLink.pointer.pointsAt());
+		if (freeList.getFirst().pointer.pointsAt() > 0) {
+			System.out.println(" | 0 - " + (current) + " | Allocated");
+			//current += freeList.getFirst().size;
+			//System.out.println(" | " + freeAddress + "-" + total + " | Free mem");
+		} else {
+			System.out.println(" | 0 - " + (current -1) + " | Free mem");
+			//current += freeList.getFirst().size;
 		}
 		
-//		 TODO Implement this!
+		for (Link free : freeList) {
+			int freeAddress = free.pointer.pointsAt();
+			int freeSize = free.size;
+			int total = freeAddress + freeSize - 1;
+			
+			
+			if(free.pointer.pointsAt() > current) {
+				System.out.println(" |  " + free.pointer.pointsAt() + "-" + (free.size) + " | Free mem");
+				current = free.pointer.pointsAt() + free.size;
+			}
+			
+			// sätta utanför och kolla om första link i freelist är 0 annars så vet vi med freelistens adress vad allocated är(före första fria)
+//			if (current == 0 && freeAddress > 0) {
+//				System.out.println(" | 0 - " + (freeAddress - 1) + " | Allocated");
+//				//System.out.println(" | " + freeAddress + "-" + total + " | Free mem");
+//				current = total;
+//			}
+//
+//			if (current < freeAddress) {
+//				System.out.println(" | " + (current + 1) + "-" + (freeAddress - 1) + " | Allocated");
+//				System.out.println(" | " + freeAddress + "-" + total + " | Free mem");
+//				current = total;
+//			}
+		}
+
+		// TODO Implement this!
 	}
 
 	/**
