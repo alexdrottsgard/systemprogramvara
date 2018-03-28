@@ -1,31 +1,28 @@
 package memory;
 
+import java.nio.file.attribute.UserDefinedFileAttributeView;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
+import edu.princeton.cs.algs4.MinPQ;
 
 /**
  * This memory model allocates memory cells based on the first-fit method.
- * @author Alexander J. Drottsgård & Elias Moltedo
+ * 
+ * @author "Johan Holmberg, Malmö university"
+ * @since 1.0
  */
-public class FirstFit extends Memory {
+public class FirstFitExtra extends Memory {
 	private LinkedList<Link> freeList = new LinkedList<Link>();
+	private LinkedList<Link> usedList = new LinkedList<Link>();
 	private HashMap<Pointer, Integer> usedMap = new HashMap<Pointer, Integer>();
 	private int memorySize;
 
-	/**
-	 * Inner class which describes segment of memory, contains allocated size and its address.
-	 * @author drottsgard
-	 */
 	class Link implements Comparator {
 		int size; // storlek
 		Pointer pointer; // Pointer, pekar på vilken adress processen har
 
-		/**
-		 * Constructor for creating a segment of memory.
-		 * @param size - the size of the segment
-		 * @param pointer - contains the address of the segment
-		 */
 		Link(int number, Pointer pointer) {
 			this.size = number;
 			this.pointer = pointer;
@@ -35,9 +32,6 @@ public class FirstFit extends Memory {
 
 		}
 
-		/**
-		 * Sorts the links in ascending order.
-		 */
 		@Override
 		public int compare(Object o1, Object o2) {
 			Link l1 = (Link) o1;
@@ -48,18 +42,22 @@ public class FirstFit extends Memory {
 	}
 
 	/**
-	 * Initializes an instance of a firstfit-based memory. 
-	 * @param size The number of cells.
+	 * Initializes an instance of a first fit-based memory.
+	 * 
+	 * @param size
+	 *            The number of cells.
 	 */
-	public FirstFit(int size) {
+	public FirstFitExtra(int size) {
 		super(size);
 		this.memorySize = size;
 		freeList.add(new Link(size, new Pointer(0, this)));
 	}
 
 	/**
-	 * Allocates a number of memory cells using the FirstFit-method.
-	 * @param size the number of cells to allocate.
+	 * Allocates a number of memory cells.
+	 * 
+	 * @param size
+	 *            the number of cells to allocate.
 	 * @return The address of the first cell.
 	 */
 	@Override
@@ -70,6 +68,7 @@ public class FirstFit extends Memory {
 			if (linkFree.size >= size) {
 				oldAddress = new Pointer(linkFree.pointer.pointsAt(), this);
 				nextAddress = new Pointer(linkFree.pointer.pointsAt() + size, this);
+				// Om freeLinken blir 0, då tar vi bort den linken
 				if (linkFree.size == size) {
 					freeList.remove(linkFree);
 				} else {
@@ -88,65 +87,73 @@ public class FirstFit extends Memory {
 	}
 
 	/**
-	 * Releases a number of data cells 
-	 * @param p The pointer to release.
+	 * Releases a number of data cells
+	 * 
+	 * @param p
+	 *            The pointer to release.
 	 */
 	@Override
 	public void release(Pointer p) {
-		int addressToRelease = p.pointsAt();
-		int sizeToRelease = usedMap.get(p);
-		int current = addressToRelease + sizeToRelease;
+		int addressToRelease = p.pointsAt(); 
+		int sizeToRelease = usedMap.get(p); 
+		int total = addressToRelease + sizeToRelease; 
+		int freeAddress = 0;
+		int index = 0; 
+		boolean removeAfter = false;
 
-		Link previous = null;
-		Link next = null;
-
-		// If the free list is empty a new link is created.
 		if (freeList.isEmpty()) {
 			Link newLink = new Link(sizeToRelease, new Pointer(addressToRelease, this));
+			System.out.println("Skapar ny link då ingen tidigare freeLink fanns");
+			System.out.println("AddressToRelease: " + addressToRelease + " sizeToRelease: " + sizeToRelease);
 			freeList.add(newLink);
 		} else {
-			
-			// Iterates through the freeList to find the free fragments closest to the one who will be released.
 			for (Link freeLink : freeList) {
-				previous = next;
-				next = freeLink;
-				if (freeLink.pointer.pointsAt() > addressToRelease) {
-					next = freeLink;
+				index = freeList.indexOf(freeLink);
+				// System.out.println("index: " + index);
+				int freeSize = freeLink.size;
+				freeAddress = freeLink.pointer.pointsAt(); 
+				// System.out.println("freeAddress: " + freeAddress);
+				int freeTotal = freeSize + freeAddress; 
+
+				if (freeAddress < addressToRelease) {
+					if (freeTotal == addressToRelease) {
+						freeLink.size += sizeToRelease;
+						total = freeLink.size;
+						usedMap.remove(p);
+						break;
+					} else if (index + 1 < freeList.size() -1) {
+						if (freeList.get(index + 1).pointer.pointsAt() == total) {
+							freeList.get(index).size += freeList.get(index + 1).size;
+							System.out.println("mergar med en free bakom som har storlek: " + freeList.get(index).size);
+							index = index + 1;
+							removeAfter = true;
+						}
+					}
+				} else {
+					System.out.println("Skapar ny link som inte har några fria 'grannar'");
+					System.out.println("AddressToRelease: " + addressToRelease + " sizeToRelease: " + sizeToRelease);
+					Link newLink = new Link(sizeToRelease, new Pointer(addressToRelease, this));
+					if (addressToRelease < freeAddress) {
+						System.out.println(addressToRelease + "<" + freeAddress);
+						System.out.println("Lägger till ny på index " + index + " i listan: nya linkens address = "
+								+ addressToRelease + " gamla länkens address = " + freeAddress);
+						freeList.add(index, newLink);
+					}
+					usedMap.remove(p);
 					break;
 				}
 
-			}
-			
-			// The free link is "behind" the memory we want to release. 
-			if (addressToRelease >= next.pointer.pointsAt() + next.size) {
-				previous = next;
-				next = null;
-			}
-			
-			Link newLink = null;
-			// The previous link is neighbor to the one we are releasing, which means we extend the previous link.
-			if (previous != null && previous.pointer.pointsAt() + previous.size == addressToRelease) {
-				previous.size += sizeToRelease;
-				current = previous.size + previous.pointer.pointsAt();
-				usedMap.remove(p);
-			} else {
-				newLink = new Link(sizeToRelease, new Pointer(addressToRelease, this));
-				freeList.add(freeList.indexOf(next), newLink);
-				usedMap.remove(p);
-				current = sizeToRelease + addressToRelease;
-			}
-			
-			// The next link (in front off) is neighbor to the one we are releasing so we extend 
-			if (next != null && next.pointer.pointsAt() == current) {
-				if (newLink != null) {
-					newLink.size += next.size;
-					freeList.remove(next);
-				} else {
-					// Both previous and next were neighbors, previous extends further.
-					previous.size += next.size;
-					freeList.remove(next);
-				}
+				// if (index + 1 < freeList.size() -1) {
+//				if (freeList.get(index + 1).pointer.pointsAt() == total) {
+//					freeList.get(index).size += freeList.get(index + 1).size;
+//					System.out.println("mergar med en free bakom som har storlek: " + freeList.get(index).size);
+//					index = index + 1;
+//				}
+				// }
 
+			}
+			if (removeAfter) {
+				freeList.remove(index + 1);
 			}
 		}
 

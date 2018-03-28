@@ -23,10 +23,9 @@ public class ComplexBatch {
 	}
 
 	public void run() {
-		System.out.println("First fit");
-		run(new FirstFit(1000)); // Swap this for  your own implementation
-//		System.out.println("\nBest fit");
-//		run(new BestFit(1000)); // Swap this for  your own implementation
+//		System.out.println("First fit");
+//		run(new FirstFit(1000)); // Swap this for  your own implementation
+		run(new BestFit(1000)); // Swap this for  your own implementation
 	}
 
 	public void run(Memory m) {
@@ -40,23 +39,23 @@ public class ComplexBatch {
 		ps[2].write(range(101, 600));
 		ps[3] = m.alloc(200);
 		ps[3].write(range(1, 200));
-		m.release(ps[2]);
+		m.release(ps[2]); //500
 		ps[4] = m.alloc(50);
 		ps[4].write(range(51, 100));
 		ps[5] = m.alloc(5);
 		ps[5].write(range(42, 46));
 		ps[6] = m.alloc(90);
 		ps[6].write(range(5000, 5089));
-		m.release(ps[0]);
+		m.release(ps[0]); //100
 		ps[7] = m.alloc(60);
 		ps[7].write(range(10, 69));
-		m.release(ps[4]);
+		m.release(ps[4]); //50
 		ps[8] = m.alloc(45);
 		ps[8].write(range(1, 45));
+		m.release(ps[5]); //5
 		ps[9] = m.alloc(10);
-		m.release(ps[5]);
 		ps[9].write(range(16, 25));
-		m.release(ps[6]);
+		m.release(ps[6]); //90
 		ps[10] = m.alloc(40);
 		ps[10].write(range(301, 340));
 		ps[11] = m.alloc(200);
@@ -69,9 +68,9 @@ public class ComplexBatch {
 		ps[14].write(range(1, 60));
 		ps[15] = m.alloc(60);
 		ps[15].write(range(1, 60));
-		m.release(ps[3]);
-		m.release(ps[13]);
-		m.release(ps[12]);
+		m.release(ps[3]); //200
+		m.release(ps[13]); //25
+		m.release(ps[12]); //35
 		ps[16] = m.alloc(170);
 		ps[16].write(range(10001, 10170));
 //		m.compact();

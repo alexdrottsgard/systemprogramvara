@@ -23,10 +23,10 @@ public class SimpleBatch {
 	}
 
 	public void run() {
-		System.out.println("First fit");
-		run(new FirstFit(100)); // Swap this for  your own implementation
-//		System.out.println("\nBest fit");
-////		run(new BestFit(100)); // Swap this for  your own implementation
+//		System.out.println("First fit");
+//		run(new FirstFit(100)); // Swap this for  your own implementation
+		System.out.println("\nBest fit");
+		run(new BestFit(100)); // Swap this for  your own implementation
 	}
 
 	public void run(Memory m) {
@@ -40,13 +40,13 @@ public class SimpleBatch {
 		p3.write(range(100, 129));
 		p4 = m.alloc(15);
 		p4.write(range(101, 115));
-		m.release(p3);
-		m.release(p1);
+		m.release(p3); //30
+		m.release(p1); //20
 		p5 = m.alloc(10);
 		p5.write(range(70, 79));
 		p6 = m.alloc(15);
 		p6.write(range(1, 15));
-		
+//		
 		m.printLayout();
 		
 //		m.compact();
